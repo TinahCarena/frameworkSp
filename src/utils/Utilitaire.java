@@ -2,9 +2,8 @@ package utils;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
-import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Vector;
-
 
 public class Utilitaire {
 
@@ -14,33 +13,33 @@ public class Utilitaire {
         return classPath;
     }
 
-    public Vector<String> getListControllers(String packageName, Class<? extends Annotation>  annotation) throws MalformedURLException, ClassNotFoundException {
-        Vector<String> controllers = new Vector<String>();
+    public Vector<String> getListControllers(String packageName, Class<? extends Annotation> annotation) throws ClassNotFoundException {
+        Vector<String> controllers = new Vector<>();
         String path = packageName.replace(".", "/");
-        try {
-            
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        java.net.URL source = classLoader.getResource(packageName);
+        URL resource = classLoader.getResource(path);
 
-        String realPath = this.modifClassPath(source.getFile());
+        if (resource == null) {
+            throw new ClassNotFoundException("Package " + packageName + " not found");
+        }
 
+        String realPath = this.modifClassPath(resource.getFile());
         File classPathDirectory = new File(realPath);
-  
-        if(classPathDirectory.isDirectory()) {
-            packageName = packageName.replace("/", ".");
-            for(String fileName: classPathDirectory.list()) {
-                fileName = fileName.substring(0, fileName.length()-6);
-                String className = packageName +"."+ fileName;
-                Class<?> classes = Class.forName(className);
-                if (classes.isAnnotationPresent(annotation)) {
+
+        if (!classPathDirectory.exists() || !classPathDirectory.isDirectory()) {
+            throw new ClassNotFoundException("Invalid directory: " + realPath);
+        }
+
+        for (String fileName : classPathDirectory.list()) {
+            if (fileName.endsWith(".class")) {
+                String className = packageName + "." + fileName.substring(0, fileName.length() - 6);
+                Class<?> clazz = Class.forName(className);
+                if (clazz.isAnnotationPresent(annotation)) {
                     controllers.add(className);
-                } 
+                }
             }
         }
-        
-        } catch (ClassNotFoundException e) {
-            System.out.println(e.getMessage());
-        }
+
         return controllers;
     }
 }

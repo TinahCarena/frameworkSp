@@ -1,14 +1,12 @@
 package mg.itu.prom16;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.ModuleLayer.Controller;
-import java.net.MalformedURLException;
 import java.util.Vector;
 import utils.Utilitaire;
+import java.lang.reflect.Method;
+import java.util.HashMap;
 
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,16 +14,32 @@ import jakarta.servlet.http.HttpServletResponse;
 
 
 import controller.AnnotationController;
+import controller.AnnotationGet;
 
 public class FrontController extends HttpServlet{
-   String packagePath;
-   boolean isChecked;
+   HashMap<String, Mapping> urlMappings;
    Vector<String> controllers;
 
    public void init() {
+      urlMappings = new HashMap<>();
       try {
          controllers = new Utilitaire().getListControllers(this.getInitParameter("source-package"), AnnotationController.class);
-         isChecked = true;
+      } catch (ClassNotFoundException e) {
+         // TODO Auto-generated catch block
+         e.printStackTrace();
+      }
+      
+      try {
+         for (String controller : controllers) {
+            Class<?> clazz = Class.forName(controller);
+            for (Method method : clazz.getDeclaredMethods()) {
+                if (method.isAnnotationPresent(AnnotationGet.class)) {
+                    AnnotationGet getAnnotation = method.getAnnotation(AnnotationGet.class);
+                    String url = getAnnotation.value();
+                    urlMappings.put(url, new Mapping(controller, method.getName()));
+                }
+            }
+        }
       } catch (Exception e) {
           throw new RuntimeException();
       }
@@ -33,12 +47,14 @@ public class FrontController extends HttpServlet{
 
    protected void processRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException, ClassNotFoundException {
       PrintWriter out = resp.getWriter();
-      if (!isChecked) {
-         init();
+      String path = req.getRequestURI().substring(req.getContextPath().length());
+
+      Mapping mapping = urlMappings.get(path);
+      if (mapping != null) {
+         out.println("URL: " + path);
+         out.println("Mapping: " + mapping);
       } else{
-         for(int i=0; i < controllers.size(); i++) {
-            out.println(controllers.get(i));
-         }
+         out.println("Pas de methode associe a ce chemin: " + path);
       }
         
     }
