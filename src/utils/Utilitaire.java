@@ -2,18 +2,24 @@ package utils;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Vector;
+
+import controller.AnnotationGet;
+import mg.itu.prom16.Mapping;
 
 public class Utilitaire {
 
-    public String modifClassPath(String classPath) {
+    public static String modifClassPath(String classPath) {
         classPath = classPath.substring(1);
         classPath = classPath.replace("%20", " ");
         return classPath;
     }
 
-    public Vector<String> getListControllers(String packageName, Class<? extends Annotation> annotation) throws ClassNotFoundException {
+    public static Vector<String> getListControllers(String packageName, Class<? extends Annotation> annotation) throws ClassNotFoundException {
         Vector<String> controllers = new Vector<>();
         String path = packageName.replace(".", "/");
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -23,7 +29,7 @@ public class Utilitaire {
             throw new ClassNotFoundException("Package " + packageName + " not found");
         }
 
-        String realPath = this.modifClassPath(resource.getFile());
+        String realPath = modifClassPath(resource.getFile());
         File classPathDirectory = new File(realPath);
 
         if (!classPathDirectory.exists() || !classPathDirectory.isDirectory()) {
@@ -41,5 +47,18 @@ public class Utilitaire {
         }
 
         return controllers;
+    }
+
+    public static List<Method> getClassMethodsWithAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
+        List<Method> methods = new ArrayList<>();
+        Method[] classMethods = clazz.getDeclaredMethods();
+
+        for (Method method : classMethods) {
+            if (method.isAnnotationPresent(annotation)) {
+                methods.add(method);
+            }
+        }
+    
+        return methods;
     }
 }
