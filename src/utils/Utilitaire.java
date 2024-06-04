@@ -8,9 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
-import controller.AnnotationGet;
-import mg.itu.prom16.Mapping;
-
 public class Utilitaire {
 
     public static String modifClassPath(String classPath) {

@@ -2,6 +2,8 @@ package mg.itu.prom16;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+
+import utils.ModelView;
 import utils.Utilitaire;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -17,7 +19,15 @@ import controller.AnnotationController;
 import controller.AnnotationGet;
 
 public class FrontController extends HttpServlet{
-   HashMap<String, Mapping> urlMappings;
+   public HashMap<String, Mapping> getUrlMappings() {
+        return urlMappings;
+    }
+
+    public void setUrlMappings(HashMap<String, Mapping> urlMappings) {
+        this.urlMappings = urlMappings;
+    }
+
+HashMap<String, Mapping> urlMappings;
   
 
    public void init() {
@@ -35,12 +45,12 @@ public class FrontController extends HttpServlet{
                  String annotationValue = method.getAnnotation(AnnotationGet.class).value();
                  temp.put(annotationValue, new Mapping(controller, method.getName()));
              }
-         }
+        }
+        setUrlMappings(temp);
       } catch (Exception e) {
          
       }
-      
-     
+   
    }
 
    protected void processRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException, ClassNotFoundException {
@@ -53,9 +63,22 @@ public class FrontController extends HttpServlet{
              Class<?> clazz = Class.forName(mapping.getClassName());
              Method method = clazz.getMethod(mapping.getMethodName());
 
-             String result = method.invoke(clazz.getConstructor().newInstance()).toString();
+             Object result = method.invoke(clazz.getConstructor().newInstance());
 
-             out.println(result);
+            if (result instanceof String) {
+                out.println(result);
+            }
+            else if (result instanceof ModelView) {
+                ModelView modelv = (ModelView)result;
+                HashMap<String, Object> data = modelv.getData();
+                for (String key : data.keySet()) {
+                    req.setAttribute(key, data.get(key));
+                }
+                req.getRequestDispatcher(modelv.getUrl()).forward(req, resp);
+            } 
+            else {
+                System.out.println("non reconnu");
+            }
          } else {
              out.println("Url not found");
          }
