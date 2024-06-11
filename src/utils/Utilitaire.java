@@ -5,8 +5,13 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Vector;
+
+import controller.AnnotationGet;
+import exception.DuplicateUrlException;
+import mg.itu.prom16.Mapping;
 
 public class Utilitaire {
 
@@ -57,5 +62,23 @@ public class Utilitaire {
         }
     
         return methods;
+    }
+
+        
+    public static HashMap<String, Mapping> getMapping(Vector<String> controllers) throws ClassNotFoundException, DuplicateUrlException {
+        HashMap<String, Mapping> temp = new HashMap<String, Mapping>();
+
+        for (String controller : controllers) {
+            Class<?> clazz = Class.forName(controller);
+            List<Method> classMethods = Utilitaire.getClassMethodsWithAnnotation(clazz, AnnotationGet.class);
+            for (Method method : classMethods) {
+                String annotationValue = method.getAnnotation(AnnotationGet.class).value();
+                if (temp.containsKey(annotationValue)) {
+                    throw new DuplicateUrlException("Duplicate Url");
+                }
+                temp.put(annotationValue, new Mapping(controller, method.getName()));
+            }
+        }
+        return temp;
     }
 }

@@ -1,13 +1,13 @@
 package mg.itu.prom16;
 
+import utils.Utilitaire;
 import java.io.IOException;
 import java.io.PrintWriter;
 
 import utils.ModelView;
-import utils.Utilitaire;
+
 import java.lang.reflect.Method;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Vector;
 
 import jakarta.servlet.ServletException;
@@ -16,55 +16,51 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import controller.AnnotationController;
-import controller.AnnotationGet;
+import exception.InvalidControllerProviderException;
+import exception.InvalidReturnTypeException;
+import exception.UrlNotFoundException;
 
 public class FrontController extends HttpServlet{
-   public HashMap<String, Mapping> getUrlMappings() {
+   
+    HashMap<String, Mapping> urlMappings;
+
+    public HashMap<String, Mapping> getUrlMappings() {
         return urlMappings;
     }
 
     public void setUrlMappings(HashMap<String, Mapping> urlMappings) {
         this.urlMappings = urlMappings;
     }
-
-HashMap<String, Mapping> urlMappings;
   
 
-   public void init() {
+   public void init() throws ServletException {
 
       try {
          String packageName = this.getInitParameter("source-package");
+        
+         if (packageName == null || packageName.isEmpty()) {
+            throw new InvalidControllerProviderException("Invalid controller provider");
+         }
          Vector<String> controllers = Utilitaire.getListControllers(packageName, AnnotationController.class);
-
-         HashMap<String, Mapping> temp = new HashMap<String, Mapping>();
-
-         for (String controller : controllers) {
-             Class<?> clazz = Class.forName(controller);
-             List<Method> classMethods = Utilitaire.getClassMethodsWithAnnotation(clazz, AnnotationGet.class);
-             for (Method method : classMethods) {
-                 String annotationValue = method.getAnnotation(AnnotationGet.class).value();
-                 temp.put(annotationValue, new Mapping(controller, method.getName()));
-             }
-        }
-        setUrlMappings(temp);
+         HashMap<String, Mapping> temp =  Utilitaire.getMapping(controllers);
+         setUrlMappings(temp);
       } catch (Exception e) {
-         
+         throw new ServletException(e);
       }
    
    }
 
-   protected void processRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException, ClassNotFoundException {
+
+    private void processRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException, ClassNotFoundException {
       PrintWriter out = resp.getWriter();
       try {
          String url = req.getRequestURI().substring(req.getContextPath().length());
          Mapping mapping = urlMappings.get(url);
-
+        out.println(mapping);
          if (mapping != null) {
              Class<?> clazz = Class.forName(mapping.getClassName());
              Method method = clazz.getMethod(mapping.getMethodName());
-
              Object result = method.invoke(clazz.getConstructor().newInstance());
-
             if (result instanceof String) {
                 out.println(result);
             }
@@ -77,16 +73,18 @@ HashMap<String, Mapping> urlMappings;
                 req.getRequestDispatcher(modelv.getUrl()).forward(req, resp);
             } 
             else {
-                System.out.println("non reconnu");
+                throw new InvalidReturnTypeException("Invalid return type");
             }
          } else {
-             out.println("Url not found");
+            throw new UrlNotFoundException("Url not found");
          }
 
-     } catch (Exception e) {
-         e.printStackTrace(out);
-     }
-        
+      } catch (UrlNotFoundException e) {
+         resp.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+      }
+      catch (Exception e) {
+        resp.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+      }   
     }
   
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
