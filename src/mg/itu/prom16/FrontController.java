@@ -60,7 +60,7 @@ public class FrontController extends HttpServlet{
          if (mapping != null) {
              Class<?> clazz = Class.forName(mapping.getClassName());
              Method method = clazz.getMethod(mapping.getMethodName());
-             Object result = method.invoke(clazz.getConstructor().newInstance());
+            Object result = method.invoke(req,clazz,method);
             if (result instanceof String) {
                 out.println(result);
             }
