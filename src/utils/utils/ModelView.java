@@ -12,7 +12,6 @@ public class ModelView {
     public void setUrl(String url) {
         this.url = url;
     }
-
     
     public HashMap<String, Object> getData() {
         return data;
@@ -27,5 +26,9 @@ public class ModelView {
             data = new HashMap<String, Object>();
         }
         this.data.put(variable, valeur);
+    }
+
+    public ModelView() {
+
     }
 }
