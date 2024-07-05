@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 import utils.ModelView;
+import utils.MySession;
 import utils.TypeConverter;
 
 import java.lang.reflect.Method;
@@ -15,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -25,16 +25,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import controller.AnnotationController;
 import controller.AnnotationReqParam;
 import exception.DuplicateUrlException;
-
 import exception.InvalidReturnTypeException;
 
-public class FrontController extends HttpServlet{
-   
+public class FrontController extends HttpServlet {
+
     private Utilitaire scanner;
     private HashMap<String, Mapping> ListService;
 
     @Override
-    public void init() throws ServletException{
+    public void init() throws ServletException {
         try {
             scanner = new Utilitaire();
             String packagename = this.getInitParameter("source-package");
@@ -50,15 +49,13 @@ public class FrontController extends HttpServlet{
         String url = scanner.conform_url(request.getRequestURL().toString());
         Mapping mapping = ListService.get(url);
         if (mapping == null) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "URL not mapped.");
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "URL non mappée.");
             return;
         }
-
+    
         try {
             Class<?> clazz = Class.forName(mapping.getClassName());
-            // Controller instance:
             Object instance = clazz.getDeclaredConstructor().newInstance();
-            // get matching method for url
             Method method = null;
             for (Method m : clazz.getDeclaredMethods()) {
                 if (m.getName().equals(mapping.getMethodName())) {
@@ -66,17 +63,15 @@ public class FrontController extends HttpServlet{
                     break;
                 }
             }
-
-            // get All the parameters name from a form:
+    
             Enumeration<String> parameterNames = request.getParameterNames();
-            // Map to hold created objects
-            Map<String, Object> objets = new HashMap<String, Object>();
+            Map<String, Object> objets = new HashMap<>();
             while (parameterNames.hasMoreElements()) {
                 String paramName = parameterNames.nextElement();
                 String[] parts = paramName.split("\\.");
                 if (parts.length > 1) {
                     String objectName = parts[0];
-                    Class<?> objetclazz = Class.forName(this.getInitParameter("model-package")+"." + objectName);
+                    Class<?> objetclazz = Class.forName(this.getInitParameter("model-package") + "." + objectName);
                     Object mydataholder;
                     if (!objets.containsKey(objectName)) {
                         mydataholder = objetclazz.getDeclaredConstructor().newInstance();
@@ -98,39 +93,49 @@ public class FrontController extends HttpServlet{
                     objets.put(paramName, paramValue);
                 }
             }
-
-            // Prepare method arguments:
+    
+            MySession session = new MySession(request.getSession());
+            objets.put("session", session);
+    
             List<Object> methodArgs = new ArrayList<>();
             for (Parameter parameter : method.getParameters()) {
-                String paramName = parameter.isAnnotationPresent(AnnotationReqParam.class) ? parameter.getAnnotation(AnnotationReqParam.class).value() : parameter.getName();
-                methodArgs.add(objets.get(paramName));
+                if (parameter.getType().equals(MySession.class)) {
+                    methodArgs.add(session);
+                } else {
+                    String paramName = parameter.isAnnotationPresent(AnnotationReqParam.class) ? parameter.getAnnotation(AnnotationReqParam.class).value() : parameter.getName();
+                    methodArgs.add(objets.get(paramName));
+                }
             }
-
-            // Invoke the controller method
+    
             Object result = method.invoke(instance, methodArgs.toArray());
             if (result instanceof String) {
                 out.println(result);
             } else if (result instanceof ModelView) {
                 ModelView mv = (ModelView) result;
-                mv.getData().forEach(request::setAttribute);
+                if (mv.getData() != null) {
+                    mv.getData().forEach(request::setAttribute);
+                }
                 RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getUrl());
                 dispatcher.forward(request, response);
             } else {
-                throw new InvalidReturnTypeException("Return type not handled for: " + url);
+                throw new InvalidReturnTypeException("Type de retour non pris en charge pour : " + url);
             }
         } catch (Exception e) {
-            out.println("<h3>Oops!</h3>");
-            out.println("<p>An error occurred while processing the request.</p>");
-            out.println(e);
+            out.println("<h3>Oups !</h3>");
+            out.println("<p>Une erreur s'est produite lors du traitement de la demande.</p>");
+            out.println("<p>Exception : " + e.getClass().getName() + "</p>");
+            out.println("<p>Message : " + e.getMessage() + "</p>");
+  
         }
     }
-
-  
+    
+    @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-       processRequest(req, resp);
+        processRequest(req, resp);
     }
 
+    @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-       processRequest(req, resp);
+        processRequest(req, resp);
     }
 }
