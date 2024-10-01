@@ -1,5 +1,6 @@
 package mg.itu.prom16;
 
+import java.lang.reflect.Method;
 
 public class Mapping {
     String className;
@@ -17,16 +18,21 @@ public class Mapping {
     public void setMethodName(String methodName) {
         this.methodName = methodName;
     }
+    
+    public Mapping() {
+    }
 
     public Mapping(String className, String methodName) {
         this.className = className;
         this.methodName = methodName;
     }
 
-    @Override
-    public String toString() {
-        return "Mapping{className='" + className + "', methodName='" + methodName + "'}";
+    // to execute the method inside the controllers annoted by a map
+    public Object invokeMethod() throws Exception {
+        Class<?> clazz = Class.forName(className);
+        Method method = clazz.getDeclaredMethod(methodName);
+        Object in_stance = clazz.getDeclaredConstructor().newInstance();
+        return method.invoke(in_stance);
     }
-
    
 }

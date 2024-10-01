@@ -1,20 +1,16 @@
 package mg.itu.prom16;
 
-import utils.Utilitaire;
+import utils.Personne;
 import java.io.IOException;
 import java.io.PrintWriter;
-
+import utils.Function;
 import utils.ModelView;
 import utils.MySession;
-import utils.TypeConverter;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.ArrayList;
-import java.util.Enumeration;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
@@ -23,112 +19,43 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import controller.AnnotationController;
+import controller.AnnotationParamObject;
 import controller.AnnotationReqParam;
-import exception.DuplicateUrlException;
-import exception.InvalidReturnTypeException;
+import controller.AnnotationResponse;
+import com.google.gson.Gson;
 
 public class FrontController extends HttpServlet {
-
-    private Utilitaire scanner;
-    private HashMap<String, Mapping> ListService;
+   
+    private List<String> controllers;
+    private HashMap<String, Mapping> map;
 
     @Override
-    public void init() throws ServletException {
-        try {
-            scanner = new Utilitaire();
-            String packagename = this.getInitParameter("source-package");
-            ListService = scanner.getMapping(packagename, AnnotationController.class);
-        } catch (DuplicateUrlException e) {
-            log("DuplicateGetMappingException occurred: " + e.getMessage());
-        }
+public void init() throws ServletException {
+    String packageToScan = this.getInitParameter("source-package");
+    if (packageToScan == null || packageToScan.isEmpty()) {
+        throw new ServletException("Le package à scanner est vide ou non défini.");
     }
+    
+    try {
+        // Récupérer toutes les classes annotées
+        this.controllers = new Function().getAllclazzsStringAnnotation(packageToScan, AnnotationController.class);
+        // Vérifier si des contrôleurs ont été trouvés
+        if (this.controllers == null || this.controllers.isEmpty()) {
+            throw new ServletException("Aucun contrôleur annoté trouvé dans le package spécifié.");
+        }
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        String url = scanner.conform_url(request.getRequestURL().toString());
-        Mapping mapping = ListService.get(url);
-        if (mapping == null) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "URL non mappée.");
-            return;
+        // Scanner les méthodes des contrôleurs
+        this.map = new Function().scanControllersMethods(this.controllers);
+        if (this.map == null || this.map.isEmpty()) {
+            throw new ServletException("Le mapping des contrôleurs est vide.");
         }
-    
-        try {
-            Class<?> clazz = Class.forName(mapping.getClassName());
-            Object instance = clazz.getDeclaredConstructor().newInstance();
-            Method method = null;
-            for (Method m : clazz.getDeclaredMethods()) {
-                if (m.getName().equals(mapping.getMethodName())) {
-                    method = m;
-                    break;
-                }
-            }
-    
-            Enumeration<String> parameterNames = request.getParameterNames();
-            Map<String, Object> objets = new HashMap<>();
-            while (parameterNames.hasMoreElements()) {
-                String paramName = parameterNames.nextElement();
-                String[] parts = paramName.split("\\.");
-                if (parts.length > 1) {
-                    String objectName = parts[0];
-                    Class<?> objetclazz = Class.forName(this.getInitParameter("model-package") + "." + objectName);
-                    Object mydataholder;
-                    if (!objets.containsKey(objectName)) {
-                        mydataholder = objetclazz.getDeclaredConstructor().newInstance();
-                        objets.put(objectName, mydataholder);
-                    } else {
-                        mydataholder = objets.get(objectName);
-                    }
-                    Method datasetter = null;
-                    for (Method m : objetclazz.getDeclaredMethods()) {
-                        if (m.getName().equals("set" + parts[1].substring(0, 1).toUpperCase() + parts[1].substring(1))) {
-                            datasetter = m;
-                            break;
-                        }
-                    }
-                    String paramValue = request.getParameter(paramName);
-                    datasetter.invoke(mydataholder, TypeConverter.convertParameter(datasetter.getParameterTypes()[0], paramValue));
-                } else {
-                    String paramValue = request.getParameter(paramName);
-                    objets.put(paramName, paramValue);
-                }
-            }
-    
-            MySession session = new MySession(request.getSession());
-            objets.put("session", session);
-    
-            List<Object> methodArgs = new ArrayList<>();
-            for (Parameter parameter : method.getParameters()) {
-                if (parameter.getType().equals(MySession.class)) {
-                    methodArgs.add(session);
-                } else {
-                    String paramName = parameter.isAnnotationPresent(AnnotationReqParam.class) ? parameter.getAnnotation(AnnotationReqParam.class).value() : parameter.getName();
-                    methodArgs.add(objets.get(paramName));
-                }
-            }
-    
-            Object result = method.invoke(instance, methodArgs.toArray());
-            if (result instanceof String) {
-                out.println(result);
-            } else if (result instanceof ModelView) {
-                ModelView mv = (ModelView) result;
-                if (mv.getData() != null) {
-                    mv.getData().forEach(request::setAttribute);
-                }
-                RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getUrl());
-                dispatcher.forward(request, response);
-            } else {
-                throw new InvalidReturnTypeException("Type de retour non pris en charge pour : " + url);
-            }
-        } catch (Exception e) {
-            out.println("<h3>Oups !</h3>");
-            out.println("<p>Une erreur s'est produite lors du traitement de la demande.</p>");
-            out.println("<p>Exception : " + e.getClass().getName() + "</p>");
-            out.println("<p>Message : " + e.getMessage() + "</p>");
-  
-        }
+    } catch (Exception e) {
+        e.printStackTrace();
+        throw new ServletException("Erreur lors de l'initialisation du FrontController : " + e.getMessage());
     }
-    
+}
+
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         processRequest(req, resp);
@@ -137,5 +64,93 @@ public class FrontController extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         processRequest(req, resp);
+    }
+
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        PrintWriter out = response.getWriter();
+        String path = new Function().getURIWithoutContextPath(request);
+
+        // Vérification si path contient un paramètre GET après "?"
+        if (path.contains("?")) {
+            int index = path.indexOf("?");
+            path = path.substring(0, index);
+        }
+
+        // Vérification si la map est initialisée avant d'y accéder
+        if (map == null) {
+            out.println("Erreur: le mapping des contrôleurs n'a pas été initialisé.");
+            return;
+        }
+
+        // Traitement de la requête si la route existe dans le mapping
+        if (map.containsKey(path)) {
+            Mapping m = map.get(path);
+            try {
+                Class<?> clazz = Class.forName(m.getClassName());
+                Method[] methods = clazz.getDeclaredMethods();
+                Method targetMethod = null;
+
+                for (Method method : methods) {
+                    if (method.getName().equals(m.getMethodName())) {
+                        targetMethod = method;
+                        break;
+                    }
+                }
+
+                if (targetMethod != null) {
+                    Object[] params = Function.getParameterValue(request, targetMethod, AnnotationReqParam.class,
+                            AnnotationParamObject.class);
+                    Object controllerInstance = clazz.newInstance();
+
+                    // Vérification et initialisation de MySession si nécessaire
+                    Field[] fields = clazz.getDeclaredFields();
+                    for (Field field : fields) {
+                        if (field.getType().equals(MySession.class)) {
+                            field.setAccessible(true);
+                            field.set(controllerInstance, new MySession(request.getSession()));
+                        }
+                    }
+
+                    Object result = targetMethod.invoke(controllerInstance, params);
+
+                    // Gestion des annotations et des types de retour
+                    if (targetMethod.isAnnotationPresent(AnnotationResponse.class)) {
+                        if (result instanceof ModelView) {
+                            response.setContentType("application/json");
+                            ModelView modelView = (ModelView) result;
+                            HashMap<String, Object> data = modelView.getData();
+                            Gson gson = new Gson();
+                            String jsonModel = gson.toJson(data);
+                            out.println(jsonModel);
+                        } else {
+                            response.setContentType("application/json");
+                            Gson gson = new Gson();
+                            String jsonResult = gson.toJson(result);
+                            out.println(jsonResult);
+                        }
+                    } else if (result instanceof String) {
+                        out.println("Résultat de l'exécution de la méthode " + m.getMethodName() + " est " + result);
+                    } else if (result instanceof ModelView) {
+                        ModelView modelView = (ModelView) result;
+                        String destinationUrl = modelView.getUrl();
+                        HashMap<String, Object> data = modelView.getData();
+                        for (String key : data.keySet()) {
+                            request.setAttribute(key, data.get(key));
+                        }
+                        RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
+                        dispatcher.forward(request, response);
+                    } else {
+                        out.println("Le type de retour n'est ni un String ni un ModelView.");
+                    }
+                } else {
+                    out.println("Méthode non trouvée : " + m.getMethodName());
+                }
+            } catch (Exception e) {
+                out.println("Erreur lors de l'exécution de la méthode : " + e.getMessage());
+            }
+        } else {
+            out.println("404 NOT FOUND");
+        }
     }
 }
