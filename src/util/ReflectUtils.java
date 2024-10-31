@@ -1,5 +1,6 @@
 package util;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -9,6 +10,7 @@ import java.util.List;
 
 import controller.AnnotationReqParam;
 import data.Session;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import mg.itu.prom16.Mapping;
 import exception.*;
@@ -48,7 +50,7 @@ public class ReflectUtils {
     public static Object executeRequestMethod(Mapping mapping, HttpServletRequest request, String verb)
             throws NoSuchMethodException, SecurityException, IllegalAccessException, IllegalArgumentException,
             InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchFieldException,
-            AnnotationNotPresentException, InvalidRequestException {
+            AnnotationNotPresentException, InvalidRequestException, IOException, ServletException {
         List<Object> objects = new ArrayList<>();
 
         Class<?> objClass = mapping.getClazz();
@@ -62,7 +64,7 @@ public class ReflectUtils {
             Object object = ObjectUtils.getDefaultValue(clazz);
             if (!parameter.isAnnotationPresent(AnnotationReqParam.class) && !clazz.equals(Session.class)) {
                 throw new AnnotationNotPresentException(
-                        "ETU2704 , one of you parameter does not have `RequestParameter` annotation");
+                        "One of you parameter require `@RequestParameter` annotation");
             }
 
             object = ObjectUtils.getParameterInstance(request, parameter, clazz, object);
