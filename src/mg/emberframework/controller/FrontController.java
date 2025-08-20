@@ -16,14 +16,12 @@ import mg.emberframework.manager.exception.InvalidControllerPackageException;
 import mg.emberframework.manager.exception.UrlNotFoundException;
 import mg.emberframework.manager.handler.ExceptionHandler;
 import mg.emberframework.manager.url.Mapping;
-import mg.emberframework.manager.data.InitParameter;
- 
+
 
 @MultipartConfig
 public class FrontController extends HttpServlet {
     private Map<String, Mapping> URLMappings;
     private Exception exception = null;
-    private InitParameter initParameter;
 
 
     // Class methods
@@ -95,11 +93,4 @@ public class FrontController extends HttpServlet {
         this.exception = exception;
     }
 
-    public InitParameter getInitParameter() {
-        return initParameter;
-    }
-
-    public void setInitParameter(InitParameter initParameter) {
-        this.initParameter = initParameter;
-    }
 }

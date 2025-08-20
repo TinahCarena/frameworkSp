@@ -19,12 +19,11 @@ for /R "%SRC_DIR%" %%f in (*.java) do (
 
 :: Compile the code
 cd "%TMP_DIR%"
-javac -d "%BIN_DIR%" -cp "%LIB_DIR%/*" "*.java"
+javac -d "%BIN_DIR%" -cp "%LIB_DIR%/*" *.java
 
 :: Create the jar
 cd "%BIN_DIR%"
-jar cvf "frame.jar" * -C "%LIB_DIR%" .
-move "frame.jar" "%PROJECT_DIR%"
+
 
 :: Clean up tmp directory
 rd /S /Q "%TMP_DIR%"    
