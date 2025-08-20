@@ -7,17 +7,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.sql.Date;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import mg.emberframework.annotation.AnnotationReqParam;
 import mg.emberframework.manager.data.File;
 import mg.emberframework.manager.data.Session;
-import mg.emberframework.manager.exception.ModelValidationException;
-import mg.emberframework.util.validation.Validator;
 
 public class ObjectUtils {
     private ObjectUtils() {
@@ -26,7 +21,7 @@ public class ObjectUtils {
     public static Object getParameterInstance(HttpServletRequest request, Parameter parameter, Class<?> clazz,
             Object object)
             throws InstantiationException, IllegalAccessException, InvocationTargetException, NoSuchMethodException,
-            NoSuchFieldException, IOException, ServletException, IllegalArgumentException, SecurityException, ModelValidationException {
+
         String strValue;
 
         AnnotationReqParam annotatedType = parameter.getAnnotation(AnnotationReqParam.class);
@@ -57,18 +52,14 @@ public class ObjectUtils {
         return object;
     }
 
-    private static void setObjectAttributesValues(Object instance, Field field, String value)
-            throws NoSuchFieldException, SecurityException, NoSuchMethodException, IllegalAccessException,
-            IllegalArgumentException, InvocationTargetException {
 
-        Object fieldValue = castObject(value, field.getType());
-        String setterMethodName = ReflectUtils.getSetterMethod(field.getName());
         Method method = instance.getClass().getMethod(setterMethodName, field.getType());
         method.invoke(instance, fieldValue);
     }
 
     public static Object getObjectInstance(Class<?> classType, String annotationValue, HttpServletRequest request)
             throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
+
             NoSuchMethodException, SecurityException, NoSuchFieldException, ModelValidationException {
         Object instance = classType.getConstructor().newInstance();
         Field[] fields = classType.getDeclaredFields();
@@ -85,6 +76,7 @@ public class ObjectUtils {
             Validator.checkField(value, field);
 
             setObjectAttributesValues(instance, field, value);
+
         }
 
         return instance;

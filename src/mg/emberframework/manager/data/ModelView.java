@@ -5,7 +5,7 @@ import java.util.Map;
 
 public class ModelView {
     String url;
-    Map<String, Object> data = new HashMap<>();
+
 
     // Class method
     public void addObject(String attribute, Object object) {

@@ -23,6 +23,7 @@ public class FrontController extends HttpServlet {
     private Map<String, Mapping> URLMappings;
     private Exception exception = null;
 
+
     // Class methods
     private void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -91,4 +92,5 @@ public class FrontController extends HttpServlet {
     public void setException(Exception exception) {
         this.exception = exception;
     }
+
 }
