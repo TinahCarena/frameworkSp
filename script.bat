@@ -23,7 +23,7 @@ javac -d "%BIN_DIR%" -cp "%LIB_DIR%/*" "*.java"
 
 :: Create the jar
 cd "%BIN_DIR%"
-jar cvf "frame.jar" *
+jar cvf "frame.jar" * -C "%LIB_DIR%" .
 move "frame.jar" "%PROJECT_DIR%"
 
 :: Clean up tmp directory
